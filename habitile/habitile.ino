@@ -1,57 +1,13 @@
-/**
-    @filename   :   epd2in7_V2-demo.ino
-    @brief      :   2.7inch e-paper display demo
-    @author     :   Waveshare
-
-    Copyright (C) Waveshare     September 20 2022
-
-   Permission is hereby granted, free of charge, to any person obtaining a copy
-   of this software and associated documnetation files (the "Software"), to deal
-   in the Software without restriction, including without limitation the rights
-   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-   copies of the Software, and to permit persons to  whom the Software is
-   furished to do so, subject to the following conditions:
-
-   The above copyright notice and this permission notice shall be included in
-   all copies or substantial portions of the Software.
-
-   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS OR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-   LIABILITY WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-   THE SOFTWARE.
-*/
-
 #include <SPI.h>
-#include "epd2in7_V2.h"
+#include "epd2in7_V2.h" // Waveshare 2.7" display library
 #include "epdpaint.h"
 #include "images.h"
-#include <BLEDevice.h>
-#include <BLEUtils.h>
-#include <BLEServer.h>
-
-#define SERVICE1_UUID "180A" // Device Information
-#define S1C1_UUID "2A29" // Manufacturer Name String
-#define S1C2_UUID "2A24" // Model Number String
-#define S1C3_UUID "2A26" // Firmware Revision String
-#define S1C4_UUID "2A27" // Hardware Revision String
-#define S1C1_STRING "Derrick Goodfriend"
-#define S1C2_STRING "Prototype A1"
-#define S1C3_STRING "230805.0900"
-#define S1C4_STRING "230730"
-
-#define SERVICE2_UUID "181C"
-#define S2C1_UUID "2B4E"
-
-#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914c"
-#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#include <Preferences.h>
+#include "SoundHandler.h"
+#include "BTHandler.h"
 
 #define COLORED     0
 #define UNCOLORED   1
-
-#define NAME "Habitile Prototype A1"
 
 const int buttonPin = A0;
 Epd epd;
@@ -62,7 +18,7 @@ bool completed = false;
 int menuSelection = 1;
 int menuItemCount = 2;
 bool firstBoot = true;
-String S2C1_STRING = "Take out trash";
+Preferences preferences;
 
 void setup() {
   Serial.begin(115200);
@@ -80,6 +36,9 @@ void setup() {
 
   /* This clears the SRAM of the e-paper display */
   epd.Clear();
+
+  //StartUpSound();
+  CustomMelody();
 
   /**
       Due to RAM not enough in Arduino UNO, a frame buffer is not allowed.
@@ -128,8 +87,10 @@ void loop() {
       BT_Advert();
     } else {
       if(completed) {
+        UncompleteSound();
         EntryView();
       } else {
+        CompletedSound();
         Completed();
       }
     }
@@ -141,6 +102,7 @@ void loop() {
 void EntryView() {
   Serial.print("Running Entry View\n");
   completed = false;
+  Set_pS2C3_ValueFromInt(0);
   menuOpen = false;
   //if (firstBoot) {
   //  firstBoot = false;
@@ -153,8 +115,13 @@ void EntryView() {
   epd.Display(habitile_bg);
   SetPaintSize(false);
 
+  //const char* taskLabel = S2C1_STRING.c_str();
+  //const char* timeLabel = S2C2_STRING.c_str();
+  const char* taskLabel = S2C1_STRING_GET().c_str();
+  const char* timeLabel = S2C2_STRING_GET().c_str();
+
   paint.Clear(UNCOLORED);
-  paint.DrawStringAt(4, 8, "Take out trash", &Font18, COLORED);
+  paint.DrawStringAt(4, 8, taskLabel, &Font18, COLORED);
   epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 38, 0+paint.GetWidth(), 38+paint.GetHeight());
 
   paint.Clear(COLORED);
@@ -162,7 +129,7 @@ void EntryView() {
   epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 66, 0+paint.GetWidth(), 66+paint.GetHeight());
 
   paint.Clear(UNCOLORED);
-  paint.DrawStringAt(45, 8, "3:00 PM", &Font18, COLORED);
+  paint.DrawStringAt(45, 8, timeLabel, &Font18, COLORED);
   epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 95, 0+paint.GetWidth(), 95+paint.GetHeight());
 
   paint.Clear(COLORED);
@@ -204,9 +171,12 @@ void Completed() {
   epd.Display_Base_color(0xff);
   epd.Display(habitile_bg);
 
+  const char* taskLabel = S2C1_STRING_GET().c_str();
+  const char* timeLabel = S2C2_STRING_GET().c_str();
+
   SetPaintSize(false);
   paint.Clear(UNCOLORED);
-  paint.DrawStringAt(4, 8, "Take out trash", &Font18, COLORED);
+  paint.DrawStringAt(4, 8, taskLabel, &Font18, COLORED);
   epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 37, 0+paint.GetWidth(), 37+paint.GetHeight());
 
   paint.Clear(COLORED);
@@ -214,7 +184,7 @@ void Completed() {
   epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 66, 0+paint.GetWidth(), 66+paint.GetHeight());
 
   paint.Clear(UNCOLORED);
-  paint.DrawStringAt(45, 8, "3:00 PM", &Font18, COLORED);
+  paint.DrawStringAt(45, 8, timeLabel, &Font18, COLORED);
   epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 95, 0+paint.GetWidth(), 95+paint.GetHeight());
 
   paint.Clear(COLORED);
@@ -402,65 +372,4 @@ void PaintSelectIcon() {
       paint.DrawStringAt(11, 7, "OK", &Font18, COLORED);
       epd.Display_Partial_Not_refresh(paint.GetImage(), 136, 235, 136+paint.GetWidth(), 235+paint.GetHeight());
   }
-}
-
-void setupBT() {
-  Serial.println("Starting BLE work!");
-
-  BLEDevice::init(NAME);
-  BLEServer *pServer = BLEDevice::createServer();
-  BLEService *pService1 = pServer->createService(SERVICE1_UUID);
-  BLECharacteristic *pS1C1 = pService1->createCharacteristic(
-                                         S1C1_UUID,
-                                         BLECharacteristic::PROPERTY_READ |
-                                         BLECharacteristic::PROPERTY_WRITE
-                                       );
-
-  pS1C1->setValue(S1C1_STRING);
-  BLECharacteristic *pS1C2 = pService1->createCharacteristic(
-                                         S1C2_UUID,
-                                         BLECharacteristic::PROPERTY_READ |
-                                         BLECharacteristic::PROPERTY_WRITE
-                                       );
-
-  pS1C2->setValue(S1C2_STRING);
-  BLECharacteristic *pS1C3 = pService1->createCharacteristic(
-                                         S1C3_UUID,
-                                         BLECharacteristic::PROPERTY_READ |
-                                         BLECharacteristic::PROPERTY_WRITE
-                                       );
-
-  pS1C3->setValue(S1C3_STRING);
-  BLECharacteristic *pS1C4 = pService1->createCharacteristic(
-                                         S1C4_UUID,
-                                         BLECharacteristic::PROPERTY_READ |
-                                         BLECharacteristic::PROPERTY_WRITE
-                                       );
-
-  pS1C4->setValue(S1C4_STRING);
-  pService1->start();
-
-  BLEService *pService2 = pServer->createService(SERVICE2_UUID);
-  BLECharacteristic *pS2C1 = pService2->createCharacteristic(
-                                         S2C1_UUID,
-                                         BLECharacteristic::PROPERTY_READ |
-                                         BLECharacteristic::PROPERTY_WRITE
-                                       );
-  const char* S2C1_Value = S2C1_STRING.c_str();
-  pS2C1->setValue(S2C1_Value);
-  pService2->start();
-
-  // BLEAdvertising *pAdvertising = pServer->getAdvertising();  // this still is working for backward compatibility
-  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
-  pAdvertising->addServiceUUID(SERVICE1_UUID);
-  pAdvertising->addServiceUUID(SERVICE2_UUID);
-  pAdvertising->setScanResponse(true);
-  pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
-  pAdvertising->setMinPreferred(0x12);
-  BLEDevice::startAdvertising();
-  Serial.println("Characteristic defined! Now you can read it in your phone!");
-}
-
-void BT_Advert() {
-  BLEDevice::startAdvertising();
 }
