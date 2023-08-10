@@ -19,6 +19,8 @@ int menuSelection = 1;
 int menuItemCount = 2;
 bool firstBoot = true;
 Preferences preferences;
+String taskTitle = "";
+String taskTime = "";
 
 void setup() {
   Serial.begin(115200);
@@ -27,6 +29,7 @@ void setup() {
   // put your setup code here, to run once:
   //Epd epd;
   setupBT();
+  GetTaskStrings();
 
   Serial.print("e-Paper init\r\n");
   if (epd.Init_Fast() != 0) {
@@ -99,6 +102,11 @@ void loop() {
 
 }
 
+void GetTaskStrings() {
+  taskTitle = S2C1_STRING_GET();
+  taskTime = S2C2_STRING_GET();
+}
+
 void EntryView() {
   Serial.print("Running Entry View\n");
   completed = false;
@@ -117,8 +125,8 @@ void EntryView() {
 
   //const char* taskLabel = S2C1_STRING.c_str();
   //const char* timeLabel = S2C2_STRING.c_str();
-  const char* taskLabel = S2C1_STRING_GET().c_str();
-  const char* timeLabel = S2C2_STRING_GET().c_str();
+  const char* taskLabel = taskTitle.c_str();
+  const char* timeLabel = taskTime.c_str();
 
   paint.Clear(UNCOLORED);
   paint.DrawStringAt(4, 8, taskLabel, &Font18, COLORED);
@@ -171,8 +179,8 @@ void Completed() {
   epd.Display_Base_color(0xff);
   epd.Display(habitile_bg);
 
-  const char* taskLabel = S2C1_STRING_GET().c_str();
-  const char* timeLabel = S2C2_STRING_GET().c_str();
+  const char* taskLabel = taskTitle.c_str();
+  const char* timeLabel = taskTime.c_str();
 
   SetPaintSize(false);
   paint.Clear(UNCOLORED);
