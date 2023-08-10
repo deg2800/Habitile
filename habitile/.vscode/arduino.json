@@ -1,0 +1,6 @@
+{
+    "board": "arduino:esp32:nano_nora",
+    "port": "/dev/tty.usbmodem3485187BF02C2",
+    "programmer": "esptool",
+    "sketch": "habitile.ino"
+}

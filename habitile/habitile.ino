@@ -9,7 +9,7 @@
 #define COLORED     0
 #define UNCOLORED   1
 
-const int buttonPin = A0;
+const int buttonPin = A0; // Analog in for all buttons
 Epd epd;
 unsigned char image[1024];
 Paint paint(image, 176, 20);    //width should be the multiple of 8
