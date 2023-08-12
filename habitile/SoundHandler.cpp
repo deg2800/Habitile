@@ -1,8 +1,9 @@
 #include "SoundHandler.h"
 #include "pitches.h"
 
+bool sound = true;
+
 void playMelody(int melody[], int noteDurations[], int numNotes) {
-  bool sound = true;;
 if (sound) {
     for (int thisNote = 0; thisNote < numNotes; thisNote++) {
         int noteDuration = 1000 / noteDurations[thisNote];
@@ -26,7 +27,6 @@ void StartUpSound() {
     playMelody(melody, noteDurations, numNotes);
 }
 
-
 void CompletedSound() {
     int melody[] = {NOTE_B3, NOTE_C4};
     int noteDurations[] = {8, 4};
@@ -34,7 +34,6 @@ void CompletedSound() {
 
     playMelody(melody, noteDurations, numNotes);
 }
-
 
 void UncompleteSound() {
     int melody[] = {NOTE_C4, NOTE_B3};
@@ -44,6 +43,29 @@ void UncompleteSound() {
     playMelody(melody, noteDurations, numNotes);
 }
 
+void ScrollUpSound() {
+    int melody[] = {NOTE_B4};
+    int noteDurations[] = {8};
+    int numNotes = sizeof(melody) / sizeof(melody[0]);
+
+    playMelody(melody, noteDurations, numNotes);
+}
+
+void ScrollDownSound() {
+    int melody[] = {NOTE_B3};
+    int noteDurations[] = {8};
+    int numNotes = sizeof(melody) / sizeof(melody[0]);
+
+    playMelody(melody, noteDurations, numNotes);
+}
+
+void ConfirmSound() {
+    int melody[] = {NOTE_C5, NOTE_C5};
+    int noteDurations[] = {8, 8};
+    int numNotes = sizeof(melody) / sizeof(melody[0]);
+
+    playMelody(melody, noteDurations, numNotes);
+}
 
 void CustomMelody() {
     int melody[] = {NOTE_A4, NOTE_C5, NOTE_B4, NOTE_D5};
@@ -53,3 +75,10 @@ void CustomMelody() {
     playMelody(melody, noteDurations, numNotes);
 }
 
+void ToggleSoundBool() {
+    sound = !sound;
+}
+
+bool GetSoundBool() {
+    return sound;
+}

@@ -7,7 +7,7 @@
 #define S1C4_UUID "2A27" // Hardware Revision String
 #define S1C1_STRING "Derrick Goodfriend"
 #define S1C2_STRING "Prototype A1"
-#define S1C3_STRING "230805.2200"
+#define S1C3_STRING "230812.0220"
 #define S1C4_STRING "230730"
 
 #define SERVICE2_UUID "181C" // User Data
@@ -153,15 +153,19 @@ String S2C2_STRING_GET() {
 void Set_pS2C3_ValueFromBool (bool value) {
   if (value) {
     pS2C3->setValue("1");
+    //completed = true;
   } else {
     pS2C3->setValue("0");
+    //completed = false;
   }
 }
 
 void Set_pS2C3_ValueFromInt (int value) {
   if (value == 1) {
   pS2C3->setValue("1");
+  //completed = true;
   } else if (value == 0) {
     pS2C3->setValue("0");
+    //completed = false;
   }
 }

@@ -5,29 +5,32 @@
 #include <Preferences.h>
 #include "SoundHandler.h"
 #include "BTHandler.h"
+#include <cstring>
 
 #define COLORED     0
 #define UNCOLORED   1
 
+enum DisplayedMenu {main,help, help_device};
+
 const int buttonPin = A0; // Analog in for all buttons
 Epd epd;
-unsigned char image[1024];
+unsigned char image[4096];
 Paint paint(image, 176, 20);    //width should be the multiple of 8
 bool menuOpen = false;
 bool completed = false;
 int menuSelection = 1;
-int menuItemCount = 2;
+int menuItemCount = 5;
 bool firstBoot = true;
 Preferences preferences;
 String taskTitle = "";
 String taskTime = "";
+DisplayedMenu menu;
 
 void setup() {
   Serial.begin(115200);
   // Button test 
   pinMode(buttonPin, INPUT);
   // put your setup code here, to run once:
-  //Epd epd;
   setupBT();
   GetTaskStrings();
 
@@ -56,38 +59,52 @@ void setup() {
 }
 
 void loop() {
-  // read the state of the pushbutton value:
-  int temp = analogRead(buttonPin);
-  // check if the pushbutton is pressed. If it is, the buttonState is LOW:
+  int buttonPinValue = analogRead(buttonPin);
 
-  if (temp < 800) {
-
+  if (buttonPinValue < 800) {
+    // Do nothing -> No button being pressed
   }
-  else if (temp > 800 && temp < 900) {
-    OpenMenu();
+  else if (buttonPinValue > 800 && buttonPinValue < 900) {
+    if (menuOpen) {
+      switch(menu) {
+        case main:
+          OpenMenu();
+          break;
+        case help:
+          ConfirmSound();
+          DisplayMenuScreen();
+          break;
+        case help_device:
+          ConfirmSound();
+          OpenHelpMenuScreen();
+          break;
+        default:
+          break;
+      }
+    } else {
+      OpenMenu();
+    }
     Serial.print("Button 1\n");
   }
-  else if (temp > 1450 && temp < 1600) {
+  else if (buttonPinValue > 1450 && buttonPinValue < 1600) {
     Serial.print("Button 2\n");
     if(menuOpen) {
-
+      MenuScrollUp();
     } else {
       EntryView();
     }
   }
-  else if (temp >= 2600 && temp < 2750) {
+  else if (buttonPinValue >= 2600 && buttonPinValue < 2750) {
     if(menuOpen) {
-      MenuScroll();
+      MenuScrollDown();
     } else {
-      epd.Init();
-      epd.Clear();
-      epd.Sleep();
+
     }
     Serial.print("Button 3\n");
   }
-  else if (temp >= 4000 && temp < 4200) {
+  else if (buttonPinValue >= 4000 && buttonPinValue < 4200) {
     if(menuOpen) {
-      BT_Advert();
+      HandleMenuSelection();
     } else {
       if(completed) {
         UncompleteSound();
@@ -107,198 +124,340 @@ void GetTaskStrings() {
   taskTime = S2C2_STRING_GET();
 }
 
-void EntryView() {
-  Serial.print("Running Entry View\n");
-  completed = false;
-  Set_pS2C3_ValueFromInt(0);
-  menuOpen = false;
-  //if (firstBoot) {
-  //  firstBoot = false;
-  //  Serial.println("firstBoot set to false");
-  //} else {
+void PaintText(String labelString, int startVert, bool coloredFG, bool coloredBG) {
+  const char* label = labelString.c_str();
+  int labelLength = strlen(label);
+  int startingHorizontalValue = 4;
+  int startingVerticalValue = 8;
+  int screenWidth = 176;
+  int fontWidth = 12;
+  int fontHeight = 12;
+  if (labelLength <= 14) {
+    int totalFontWidth = labelLength * fontWidth;
+    int remainingValue = screenWidth - totalFontWidth;
+    startingHorizontalValue = remainingValue / 2;
+  } else {
+    String newLabelString = labelString.substring(0,10);
+    newLabelString = newLabelString + "...";
+    label = newLabelString.c_str();
+  }
+  paint.Clear(coloredBG ? COLORED : UNCOLORED);
+  paint.DrawStringAt(startingHorizontalValue, startingVerticalValue, label, &Font12, coloredFG ? COLORED : UNCOLORED);
+  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, startVert, 0+paint.GetWidth(), startVert+paint.GetHeight());
+}
+
+void ClearPaintArea(int startVert, bool coloredBG) {
+  paint.Clear(coloredBG ? COLORED : UNCOLORED);
+  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, startVert, 0+paint.GetWidth(), startVert+paint.GetHeight());
+}
+
+void InitNewScreen() {
   epd.Init_Fast();
-  //}
   epd.Clear();
   epd.Display_Base_color(0xff);
   epd.Display(habitile_bg);
   SetPaintSize(false);
+}
 
-  //const char* taskLabel = S2C1_STRING.c_str();
-  //const char* timeLabel = S2C2_STRING.c_str();
-  const char* taskLabel = taskTitle.c_str();
-  const char* timeLabel = taskTime.c_str();
+void InitScreen() {
+  epd.Init_Fast();
+  SetPaintSize(false);
+}
 
-  paint.Clear(UNCOLORED);
-  paint.DrawStringAt(4, 8, taskLabel, &Font18, COLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 38, 0+paint.GetWidth(), 38+paint.GetHeight());
+void BuildTaskInfoView() {
+  PaintText(taskTitle, 38, true, false);
+  PaintText("Time:", 66, false, true);
+  PaintText(taskTime, 95, true, false);
+  PaintText("Status:", 124, false, true);
+  PaintText(completed ? "COMPLETED" : "NOT COMPLETED", 153, true, false);
+  PaintText("Derrick", 182, true, false);
+  PaintText("Goodfriend", 198, true, false);
+}
 
-  paint.Clear(COLORED);
-  paint.DrawStringAt(58, 8, "Time:", &Font18, UNCOLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 66, 0+paint.GetWidth(), 66+paint.GetHeight());
-
-  paint.Clear(UNCOLORED);
-  paint.DrawStringAt(45, 8, timeLabel, &Font18, COLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 95, 0+paint.GetWidth(), 95+paint.GetHeight());
-
-  paint.Clear(COLORED);
-  paint.DrawStringAt(45, 8, "Status:", &Font18, UNCOLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 124, 0+paint.GetWidth(), 124+paint.GetHeight());
-
-  paint.Clear(UNCOLORED);
-  paint.DrawStringAt(9, 8, "NOT COMPLETED", &Font18, COLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 153, 0+paint.GetWidth(), 153+paint.GetHeight());
-
-  paint.Clear(UNCOLORED);
-  paint.DrawStringAt(45, 8, "Derrick", &Font18, COLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 182, 0+paint.GetWidth(), 182+paint.GetHeight());
-
-  paint.Clear(UNCOLORED);
-  paint.DrawStringAt(27, 8, "Goodfriend", &Font18, COLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 198, 0+paint.GetWidth(), 198+paint.GetHeight());
-
-  SetupIcons();
-
+void RefreshAndSleep() {
   paint.Clear(UNCOLORED);
   epd.Display_Partial(paint.GetImage(), 90, 264, 90+paint.GetWidth(), 264+paint.GetHeight());  
-  
-  /* Deep sleep */
-  Serial.print("sleep...");
   epd.Sleep();
 }
+
+void Refresh() {
+  PaintText("", 66, true, false);
+  PaintText("", 95, true, false);
+  PaintText("", 124, true, false);
+  PaintText("", 153, true, false);
+  PaintText("", 182, true, false);
+  PaintText("", 198, true, false);
+  epd.Display_Partial(paint.GetImage(), 90, 264, 90+paint.GetWidth(), 264+paint.GetHeight()); 
+}
+
+void SyncCompletedBoolWithBLEValue() {
+  if (completed) {
+    Set_pS2C3_ValueFromInt(1);
+  } else {
+    Set_pS2C3_ValueFromInt(0);
+  }
+}
+
+void EntryView() {
+  Serial.print("Running Entry View\n");
+  completed = false;
+  SyncCompletedBoolWithBLEValue();
+  menuOpen = false;
+  InitNewScreen();
+  BuildTaskInfoView();
+  SetupIcons();
+  RefreshAndSleep();
+}
+
 
 void Completed() {
   Serial.print(("\nRunning Completed\n"));
   completed = true;
+  SyncCompletedBoolWithBLEValue();
   menuOpen = false;
-  Serial.print(("Completed/Turn on display\n"));
-  epd.Reset();
-  Serial.print(("Completed/Clear\n"));
-  epd.Init();
-  Serial.print(("Completed/Init Fast\n"));
-  epd.Clear();
-  epd.Display_Base_color(0xff);
-  epd.Display(habitile_bg);
+  InitNewScreen();
+  BuildTaskInfoView();
+  SetupIcons();
+  RefreshAndSleep();
+}
 
-  const char* taskLabel = taskTitle.c_str();
-  const char* timeLabel = taskTime.c_str();
+bool MenuSelectionBool(int selection) {
+  if (selection == menuSelection) {
+    return true;
+  } else {
+    return false;
+  }
+}
 
+void PaintMenuText(String labelText, int selection) {
+  int firstMenuItemLocation = 61;
+  int amountToAdd = 24;
+  int startingLocation = firstMenuItemLocation + (amountToAdd * (selection - 1));
+  PaintText(labelText, startingLocation, !MenuSelectionBool(selection), MenuSelectionBool(selection));
+}
+
+void SetupMenuScreen() {
   SetPaintSize(false);
   paint.Clear(UNCOLORED);
-  paint.DrawStringAt(4, 8, taskLabel, &Font18, COLORED);
+  paint.DrawStringAt(40, 8, "[ Menu ]", &Font12, COLORED);
   epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 37, 0+paint.GetWidth(), 37+paint.GetHeight());
 
-  paint.Clear(COLORED);
-  paint.DrawStringAt(58, 8, "Time:", &Font18, UNCOLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 66, 0+paint.GetWidth(), 66+paint.GetHeight());
+  menuItemCount = 5; // Sets number of menu items to display
+  PaintMenuText("Settings", 1);
+  PaintMenuText("Help", 2);
+  PaintMenuText(GetSoundBool() ? "Sounds: on" : "Sounds: off", 3);
+  PaintMenuText("BLE Advertise", 4);
+  PaintMenuText("Clear Screen", 5);
+}
 
-  paint.Clear(UNCOLORED);
-  paint.DrawStringAt(45, 8, timeLabel, &Font18, COLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 95, 0+paint.GetWidth(), 95+paint.GetHeight());
-
-  paint.Clear(COLORED);
-  paint.DrawStringAt(45, 8, "Status:", &Font18, UNCOLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 124, 0+paint.GetWidth(), 124+paint.GetHeight());
-
-  paint.Clear(UNCOLORED);
-  paint.DrawStringAt(34, 8, "COMPLETED", &Font18, COLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 153, 0+paint.GetWidth(), 153+paint.GetHeight());
-
-  paint.Clear(UNCOLORED);
-  paint.DrawStringAt(45, 8, "Derrick", &Font18, COLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 182, 0+paint.GetWidth(), 182+paint.GetHeight());
-
-  paint.Clear(UNCOLORED);
-  paint.DrawStringAt(27, 8, "Goodfriend", &Font18, COLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 198, 0+paint.GetWidth(), 198+paint.GetHeight());
-
+void DisplayMenuScreen() {
+  menu = DisplayedMenu::main;
+  menuSelection = 1;
+  menuOpen = true;
+  InitNewScreen();
+  SetupMenuScreen();
   SetupIcons();
+  RefreshAndSleep();
+}
 
+void UpdateMenuScreen() {
+  InitNewScreen();
+  SetupMenuScreen();
+  SetupIcons();
+  RefreshAndSleep();
+}
+
+void OpenHelpMenuScreen() {
+  menu = DisplayedMenu::help;
+  menuSelection = 1;
+  InitNewScreen();
+  SetupHelpMenuScreen();
+  SetupIcons();
+  RefreshAndSleep();
+}
+
+void UpdateHelpMenuScreen() {
+  InitNewScreen();
+  SetupHelpMenuScreen();
+  SetupIcons();
+  RefreshAndSleep();
+}
+
+void SetupHelpMenuScreen() {
+  SetPaintSize(false);
   paint.Clear(UNCOLORED);
-  epd.Display_Partial(paint.GetImage(), 90, 264, 90+paint.GetWidth(), 264+paint.GetHeight());
+  paint.DrawStringAt(40, 8, "[ Help ]", &Font12, COLORED);
+  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 37, 0+paint.GetWidth(), 37+paint.GetHeight());
 
+  menuItemCount = 5; // Sets number of menu items to display
+  PaintMenuText("Get Started", 1);
+  PaintMenuText("Device Info", 2);
+  PaintMenuText("Solve Problems", 3);
+  PaintMenuText("Support Info", 4);
+  PaintMenuText("<- Back", 5);
+}
+
+
+void OpenHelpMenuDeviceScreen() {
+  menu = DisplayedMenu::help_device;
+  menuSelection = 1;
+  InitNewScreen();
+  SetupHelpMenuDeviceScreen();
+  SetupIcons();
+  RefreshAndSleep();
+}
+
+void SetupHelpMenuDeviceScreen() {
+  SetPaintSize(false);
+  paint.Clear(UNCOLORED);
+  paint.DrawStringAt(10, 8, "[Device Info]", &Font12, COLORED);
+  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 37, 0+paint.GetWidth(), 37+paint.GetHeight());
+  PaintText("Habitile", 58, true, false);
+  PaintText("Prototype A1", 78, true, false);
+  PaintText("Firmware Ver", 98, true, false);
+  PaintText("230812.0220", 118, true, false);
+  PaintText("Hardware Ver", 138, true, false);
+  PaintText("230730", 158, true, false);
+
+  menuItemCount = 1; // Sets number of menu items to display
+  PaintMenuText("<- Back", 6);
+}
+
+void HandleMenuSelection() {
+  switch(menuSelection) {
+    case 1:
+      switch(menu) {
+        case main:
+          break;
+        case help:
+          break;
+        case help_device:
+          ConfirmSound();
+          OpenHelpMenuScreen();
+          break;
+        default:
+          break;
+      }
+      break;
+    case 2:
+      switch(menu) {
+        case main:
+          ConfirmSound();
+          OpenHelpMenuScreen();
+          break;
+        case help:
+          ConfirmSound();
+          OpenHelpMenuDeviceScreen();
+          break;
+        case help_device:
+          break;
+        default:
+          break;
+      }
+      break;
+    case 3:
+      switch(menu) {
+        case main:
+          ConfirmSound();
+          ToggleSoundBool();
+          UpdateMenuScreen();
+          break;
+        case help:
+          break;
+        default:
+          break;
+      }
+      break;
+    case 4:
+      switch(menu) {
+        case main:
+          BT_Advert();
+          ConfirmSound();
+          break;
+        case help:
+          break;
+        default:
+          break;
+      }
+      break;
+    case 5:
+      switch(menu) {
+        case main:
+          ConfirmSound();
+          ClearScreen();
+          break;
+        case help:
+          ConfirmSound();
+          DisplayMenuScreen();
+          break;
+        default:
+          break;
+      }
+    default:
+      break;
+  }
+}
+
+void ClearScreen() {
+  epd.Init();
+  epd.Clear();
   epd.Sleep();
 }
 
 void OpenMenu() {
+  ConfirmSound();
   Serial.print("Menu button pressed\n");
+  
   if (menuOpen) {
     Serial.print("Menu open bool true\n");
     if (completed) {
       Serial.print("Completed bool true\n");
       Completed();
-      menuOpen = false;
     }
     else {
-      Serial.print("Completed bool fasle\n");
+      Serial.print("Completed bool false\n");
       EntryView();
-      menuOpen = false;
     }
-  } else {
+    menuOpen = false; // Set the menuOpen flag to false after transitioning to another view
+  } 
+  else {
     Serial.print("Menu open bool false\n");
-  epd.Init_Fast();
-  epd.Clear();
-  epd.Display(habitile_bg);
-
-  menuOpen = true;
-
-  SetPaintSize(false);
-  paint.Clear(UNCOLORED);
-  paint.DrawStringAt(40, 8, "[ Menu ]", &Font18, COLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 37, 0+paint.GetWidth(), 37+paint.GetHeight());
-
-  paint.Clear(COLORED);
-  paint.DrawStringAt(40, 8, "Settings", &Font18, UNCOLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 61, 0+paint.GetWidth(), 61+paint.GetHeight());
-
-  paint.Clear(UNCOLORED);
-  paint.DrawStringAt(60, 8, "Help", &Font18, COLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 85, 0+paint.GetWidth(), 85+paint.GetHeight());
-
-  SetupIcons();
-
-  paint.Clear(UNCOLORED);
-  epd.Display_Partial(paint.GetImage(), 90, 264, 90+paint.GetWidth(), 264+paint.GetHeight());
-
-  epd.Sleep();
+    DisplayMenuScreen();
+    menuOpen = true; // Set the menuOpen flag to true after displaying the menu
   }
 }
 
-void MenuScroll() {
+void MenuScrollDisplayRefresh() {
+  switch(menu) {
+    case main:
+      UpdateMenuScreen();
+      break;
+    case help:
+      UpdateHelpMenuScreen();
+      break;
+    default:
+      break;
+  }
+}
+
+void MenuScrollDown() {
+  ScrollDownSound();
   int newScroll = menuSelection + 1;
   if (newScroll > menuItemCount) {
     newScroll = 1;
   }
   menuSelection = newScroll;
-  MenuScrollView();
+  MenuScrollDisplayRefresh();
 }
 
-void MenuScrollView() {
-  epd.Init();
-  epd.Clear();
-  epd.Display_Fast(habitile_bg);
-  Serial.print("Menu Scroll/menuSelection = ");
-  Serial.print(menuSelection);
-  Serial.print("\n");
-
-  SetPaintSize(false);
-  paint.Clear(UNCOLORED);
-  paint.DrawStringAt(40, 8, "[ Menu ]", &Font18, COLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 37, 0+paint.GetWidth(), 37+paint.GetHeight());
-
-  paint.Clear((menuSelection == 1) ? COLORED : UNCOLORED);
-  paint.DrawStringAt(40, 8, "Settings", &Font18, (menuSelection == 1) ? UNCOLORED : COLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 61, 0+paint.GetWidth(), 61+paint.GetHeight());
-
-  paint.Clear((menuSelection == 2) ? COLORED : UNCOLORED);
-  paint.DrawStringAt(60, 8, "Help", &Font18, (menuSelection == 2) ? UNCOLORED : COLORED);
-  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 85, 0+paint.GetWidth(), 85+paint.GetHeight());
-
-  SetupIcons();
-
-  paint.Clear(UNCOLORED);
-  epd.Display_Partial(paint.GetImage(), 90, 264, 90+paint.GetWidth(), 264+paint.GetHeight());
-
-  epd.Sleep();
+void MenuScrollUp() {
+  ScrollUpSound();
+  int newScroll = menuSelection - 1;
+  if (newScroll == 0) {
+    newScroll = menuItemCount;
+  }
+  menuSelection = newScroll;
+  MenuScrollDisplayRefresh();
 }
 
 void SetPaintSize(bool isIcon) {
@@ -323,22 +482,31 @@ void SetupIcons() {
 
 void PaintMenuIcon() {
   if (menuOpen) {
-    paint.Clear(UNCOLORED);
-    paint.DrawFilledCircle(20, 10, 10, COLORED);
-    paint.DrawHorizontalLine(15, 5, 10, UNCOLORED);
-    paint.DrawHorizontalLine(15, 10, 10, UNCOLORED);
-    paint.DrawHorizontalLine(15, 15, 10, UNCOLORED);
-    epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 235, 0+paint.GetWidth(), 235+paint.GetHeight());
-
+    switch(menu) {
+      case main:
+        DrawMenuIcon(true);
+        break;
+      default:
+        PaintBackArrow();
+        break;
+    }
     PaintMenuArrows();
   } else {
-    paint.Clear(UNCOLORED);
-    paint.DrawCircle(20, 10, 10, COLORED);
-    paint.DrawHorizontalLine(15, 5, 10, COLORED);
-    paint.DrawHorizontalLine(15, 10, 10, COLORED);
-    paint.DrawHorizontalLine(15, 15, 10, COLORED);
-    epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 235, 0+paint.GetWidth(), 235+paint.GetHeight());
+    DrawMenuIcon(false);
   }
+}
+
+void DrawMenuIcon(bool filled) {
+  paint.Clear(UNCOLORED);
+  if (filled) {
+    paint.DrawFilledCircle(20, 10, 10, COLORED);
+  } else {
+    paint.DrawCircle(20, 10, 10, COLORED);
+  }
+  paint.DrawHorizontalLine(15, 5, 10, filled ? UNCOLORED : COLORED);
+  paint.DrawHorizontalLine(15, 10, 10, filled ? UNCOLORED : COLORED);
+  paint.DrawHorizontalLine(15, 15, 10, filled ? UNCOLORED : COLORED);
+  epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 235, 0+paint.GetWidth(), 235+paint.GetHeight());
 }
 
 void PaintMenuArrows() {
@@ -353,6 +521,32 @@ void PaintMenuArrows() {
     paint.DrawLine(18, 30, 25, 20, COLORED);
     paint.DrawLine(18, 30, 11, 20, COLORED);
     epd.Display_Partial_Not_refresh(paint.GetImage(), 96, 225, 96+paint.GetWidth(), 225+paint.GetHeight());
+}
+
+void PaintBackArrow() {
+    // Define the size and positions
+    const int arrowSize = 40; 
+    int x = 2;  // Starting position for the 44x44 area of position 1
+    int y = 2 + (44 - arrowSize) / 2;  // Vertically centering the arrow in the 44x44 area
+
+    // Clear the 40x40 paint area
+    paint.Clear(UNCOLORED);
+    
+    // Define the arrow shaft's start and end positions
+    int shaftStartX = x + arrowSize - 10;  // 10 pixels from the right edge
+    int shaftEndX = x + 10;  // 10 pixels from the left edge
+    int shaftY = y + arrowSize / 2;  // Middle of the arrow area
+    
+    // Draw the horizontal shaft of the arrow
+    paint.DrawLine(shaftStartX, shaftY, shaftEndX, shaftY, COLORED);
+    
+    // Draw the two diagonal lines for the arrowhead (pointing left)
+    int arrowheadLength = 7;  // Define the length of the arrowhead lines
+    paint.DrawLine(shaftEndX, shaftY, shaftEndX + arrowheadLength, shaftY - arrowheadLength, COLORED);  // Upper diagonal
+    paint.DrawLine(shaftEndX, shaftY, shaftEndX + arrowheadLength, shaftY + arrowheadLength, COLORED);  // Lower diagonal
+    
+    // Refresh the section of the display where the arrow is painted
+    epd.Display_Partial_Not_refresh(paint.GetImage(), x, 225, x + arrowSize, 225 + arrowSize);
 }
 
 void PaintCheckmarkIcon() {
@@ -377,7 +571,7 @@ void PaintSelectIcon() {
   if(menuOpen) {
     paint.Clear(UNCOLORED);
       paint.DrawCircle(20, 10, 10, COLORED);
-      paint.DrawStringAt(11, 7, "OK", &Font18, COLORED);
+      paint.DrawStringAt(11, 7, "OK", &Font12, COLORED);
       epd.Display_Partial_Not_refresh(paint.GetImage(), 136, 235, 136+paint.GetWidth(), 235+paint.GetHeight());
   }
 }

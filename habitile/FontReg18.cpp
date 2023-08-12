@@ -1,7 +1,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "fonts.h"
 #include <pgmspace.h>
-const uint8_t Font18_Table [] PROGMEM = 
+const uint8_t Font12_Table [] PROGMEM = 
 {
 	// ASCII: 32 " " (12 pixels wide)
 	0x00, 0x00, 0x00, 
@@ -955,8 +955,8 @@ const uint8_t Font18_Table [] PROGMEM =
 	
 };
 
-sFONT Font18 = {
-	Font18_Table,
+sFONT Font12 = {
+	Font12_Table,
 	12, /* Width */
 	12, /* Height */
 };

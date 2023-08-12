@@ -10,6 +10,11 @@ void StartUpSound();
 void CompletedSound();
 void UncompleteSound();
 void CustomMelody();
+void ScrollUpSound();
+void ScrollDownSound();
+void ConfirmSound();
+void ToggleSoundBool();
+bool GetSoundBool();
 
 #endif
 
