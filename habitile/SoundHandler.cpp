@@ -1,6 +1,8 @@
 #include "SoundHandler.h"
 #include "pitches.h"
+#include "DevicePrefs.h"
 
+//Preferences preferences;
 bool sound = true;
 
 void playMelody(int melody[], int noteDurations[], int numNotes) {
@@ -67,6 +69,14 @@ void ConfirmSound() {
     playMelody(melody, noteDurations, numNotes);
 }
 
+void BTReceiveSound() {
+    int melody[] = {NOTE_G5, NOTE_G5, NOTE_G5};
+    int noteDurations[] = {16, 16, 16};
+    int numNotes = sizeof(melody) / sizeof(melody[0]);
+
+    playMelody(melody, noteDurations, numNotes);
+}
+
 void CustomMelody() {
     int melody[] = {NOTE_A4, NOTE_C5, NOTE_B4, NOTE_D5};
     int noteDurations[] = {8, 4, 8, 4}; // 8 is an eighth note, 4 is a quarter note.
@@ -77,8 +87,20 @@ void CustomMelody() {
 
 void ToggleSoundBool() {
     sound = !sound;
+    SetSoundPrefs();
 }
 
 bool GetSoundBool() {
     return sound;
+}
+
+void SetSoundPrefs() {
+    SetBoolPref("sound", sound);
+}
+
+void SetSoundBoolToPrefValue() {
+    bool soundPrefValue = GetBoolPref("sound", true);
+    if (sound != soundPrefValue) {
+        sound = soundPrefValue;
+    }
 }
