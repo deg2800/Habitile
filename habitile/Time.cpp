@@ -20,6 +20,9 @@ void SetFormattedTime() {
             setToPM = true;
             Serial.println("Set to PM, new HourInt: " + String(hourInt));
         }
+        if (hourInt == 12) {
+            setToPM = true;
+        }
         if (hourInt == 0) {
             hourString = "12";
         } else {

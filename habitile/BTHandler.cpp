@@ -8,8 +8,8 @@
 #define S1C4_UUID "2A27" // Hardware Revision String
 #define S1C1_STRING "Derrick Goodfriend"
 #define S1C2_STRING "Prototype A1"
-#define S1C3_STRING "230812.0220"
-#define S1C4_STRING "230730"
+#define S1C3_STRING "230816.1840"
+#define S1C4_STRING "230814"
 
 #define SERVICE2_UUID "181C" // User Data
 #define S2C1_UUID "2B4E" // Activity Goal
