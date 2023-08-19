@@ -22,6 +22,8 @@ int menuSelection = 1;
 int menuItemCount = 5;
 bool firstBoot = true;
 String taskTitle = "";
+String taskLine2 = "";
+String taskLine3 = "";
 String taskTime = "";
 DisplayedMenu menu;
 
@@ -233,12 +235,12 @@ void InitScreen() {
 
 void BuildTaskInfoView() {
   PaintText(taskTitle, 38, true, false);
-  PaintText("Time:", 66, false, true);
-  PaintText(taskTime, 95, true, false);
-  PaintText("Status:", 124, false, true);
-  PaintText(completed ? "COMPLETED" : "NOT COMPLETED", 153, true, false);
-  PaintText("Derrick", 182, true, false);
-  PaintText("Goodfriend", 198, true, false);
+  PaintText("Line 2", 58, true, false);
+  PaintText("Line 3", 78, true, false);
+  PaintText("Time:", 102, false, true);
+  PaintText(taskTime, 131, true, false);
+  PaintText("Status:", 160, false, true);
+  PaintText(completed ? "COMPLETED" : "NOT COMPLETED", 189, true, false);
 }
 
 void RefreshAndSleep() {
@@ -371,15 +373,16 @@ void SetupHelpMenuDeviceScreen() {
   paint.Clear(WHITE);
   paint.DrawStringAt(10, 8, "[Device Info]", &Font12, BLACK);
   epd.Display_Partial_Not_refresh(paint.GetImage(), 0, 37, 0+paint.GetWidth(), 37+paint.GetHeight());
-  PaintText("Habitile", 58, true, false);
+  PaintText("Zync", 58, true, false);
   PaintText("Prototype A1", 78, true, false);
   PaintText("Firmware Ver", 98, true, false);
-  PaintText("230812.0220", 118, true, false);
+  PaintText("230816.1840", 118, true, false);
   PaintText("Hardware Ver", 138, true, false);
-  PaintText("230730", 158, true, false);
+  PaintText("230814", 158, true, false);
+  PaintText("Neurozync LLC", 178, true, false);
 
   menuItemCount = 1; // Sets number of menu items to display
-  PaintMenuText("<- Back", 6);
+  //PaintMenuText("<- Back", 6);
 }
 
 void SetupSettingsMenuScreen() {
