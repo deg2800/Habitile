@@ -199,9 +199,9 @@ void PaintText(String labelString, int startVert, bool coloredFG, bool coloredBG
   int startingHorizontalValue = 4;
   int startingVerticalValue = 8;
   int screenWidth = 176;
-  int fontWidth = 12;
+  int fontWidth = 7;
   int fontHeight = 12;
-  if (labelLength <= 14) {
+  if (labelLength <= 25) {
     int totalFontWidth = labelLength * fontWidth;
     int remainingValue = screenWidth - totalFontWidth;
     startingHorizontalValue = remainingValue / 2;
