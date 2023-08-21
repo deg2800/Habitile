@@ -5,3 +5,7 @@ extern const unsigned char habitile_menuUnselected[];
 extern const unsigned char habitile_minus[];
 extern const unsigned char habitile_plus[];
 extern const unsigned char habitile_unfilledCheckmark[];
+extern const unsigned char habitile_upArrow[];
+extern const unsigned char habitile_downArrow[];
+extern const unsigned char habitile_backArrow[];
+extern const unsigned char habitile_forwardArrow[];

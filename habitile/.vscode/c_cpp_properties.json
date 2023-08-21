@@ -219,7 +219,6 @@
                 "/Users/derrick/Library/Arduino15/packages/arduino/hardware/esp32/2.0.11/tools/sdk/esp32s3/qio_opi/include",
                 "/Users/derrick/Library/Arduino15/packages/arduino/hardware/esp32/2.0.11/cores/esp32",
                 "/Users/derrick/Library/Arduino15/packages/arduino/hardware/esp32/2.0.11/variants/arduino_nano_nora",
-                "/Users/derrick/Library/Arduino15/packages/arduino/hardware/esp32/2.0.11/libraries/SPI/src",
                 "/Users/derrick/Library/Arduino15/packages/arduino/hardware/esp32/2.0.11/libraries/Preferences/src",
                 "/Users/derrick/Library/Arduino15/packages/arduino/hardware/esp32/2.0.11/libraries/BLE/src",
                 "/Users/derrick/Library/Arduino15/packages/esp32/tools/xtensa-esp32s3-elf-gcc/esp-2021r2-patch5-8.4.0/xtensa-esp32s3-elf/include/c++/8.4.0",
